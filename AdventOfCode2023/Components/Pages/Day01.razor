@@ -1,0 +1,74 @@
+﻿@page "/day01"
+@rendermode InteractiveServer
+
+<PageTitle>Day 01</PageTitle>
+
+<h1>Day 01</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+<textarea rows="10">@InputData2</textarea>
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+
+@code {
+    public string InputData { get; set; } = string.Empty;
+    public string InputData2 { get; set; } = string.Empty;
+    public long Result1 { get; set; } = 0;
+    public long Result2 { get; set; } = 0;
+
+    private readonly string[] splitCharacters = new[] { "\r\n", "\r", "\n" };
+    private readonly Dictionary<string, string> numbersAsText = new Dictionary<string, string>
+    {
+        { "one", "one1one" },
+        { "two", "two2two" },
+        { "three", "three3three" },
+        { "four", "four4four" },
+        { "five", "five5five" },
+        { "six", "six6six" },
+        { "seven", "seven7seven" },
+        { "eight", "eight8eight" },
+        { "nine", "nine9nine" },
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        InputData = await File.ReadAllTextAsync($"{Directory.GetCurrentDirectory()}{@"\wwwroot\input\day01.txt"}");
+    }
+
+    public void HandleInputChange(ChangeEventArgs args)
+    {
+        InputData = args.Value?.ToString() ?? string.Empty;
+    }
+
+    public void RunPart1()
+    {
+        var lines = InputData.GetLines();
+        Result1 = GetResultFromLines(lines);
+    }
+
+    public void RunPart2()
+    {
+        var lines = InputData.GetLines().Select(line => numbersAsText.Aggregate(line, (current, replacement) => current.Replace(replacement.Key, replacement.Value)));
+        InputData2 = string.Join("\r\n", lines);
+        Result2 = GetResultFromLines(lines);
+    }
+
+    private int GetResultFromLines(IEnumerable<string> lines)
+    {
+        return lines
+            .Select(line => line
+                .Where(char.IsDigit)
+                .FirstAndLast()
+                .ToArray())
+            .Select(lines => string.Join(string.Empty, lines))
+            .Select(int.Parse)
+            .Sum();
+    }
+}
