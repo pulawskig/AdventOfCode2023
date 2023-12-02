@@ -1,0 +1,84 @@
+﻿@page "/day02"
+@rendermode InteractiveServer
+
+<PageTitle>Day 02</PageTitle>
+
+<h1>Day 02</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+
+@code {
+    public string InputData { get; set; } = string.Empty;
+    public long Result1 { get; set; } = 0;
+    public long Result2 { get; set; } = 0;
+
+    private readonly Regex gameRegex = new Regex(@"Game (\d+): (.*)");
+    private readonly Regex groupRegex = new Regex(@"(\d+) (red|green|blue)");
+    private readonly Dictionary<string, int> maxGroups = new Dictionary<string, int>
+    {
+        { "red", 12 },
+        { "green", 13 },
+        { "blue", 14 },
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        InputData = await File.ReadAllTextAsync($"{Directory.GetCurrentDirectory()}{@"\wwwroot\input\day02.txt"}");
+    }
+
+    public void HandleInputChange(ChangeEventArgs args)
+    {
+        InputData = args.Value?.ToString() ?? string.Empty;
+    }
+
+    public void RunPart1()
+    {
+        Result1 = InputData
+            .ParseLines(this.ParseLine)
+            .Where(game => game.Groups.All(group => group.Red <= 12 && group.Green <= 13 && group.Blue <= 14))
+            .Sum(game => game.Id);
+    }
+
+    public void RunPart2()
+    {
+        Result2 = InputData
+            .ParseLines(this.ParseLine)
+            .Select(game => (red: game.Groups.Max(g => g.Red), green: game.Groups.Max(g => g.Green), blue: game.Groups.Max(g => g.Blue)))
+            .Select(x => x.red * x.green * x.blue)
+            .Sum();
+    }
+
+    private Game ParseLine(string line)
+    {
+        var gameMatch = gameRegex.Match(line);
+        var id = int.Parse(gameMatch.Groups[1].Value);
+
+        var groupsLine = gameMatch.Groups[2].Value;
+        var groups = new List<Group>();
+        foreach (var split in groupsLine.Split(';'))
+        {
+            var groupMatches = groupRegex.Matches(split);
+            var colors = groupMatches.ToDictionary(match => match.Groups[2].Value, match => int.Parse(match.Groups[1].Value));
+
+            colors.TryGetValue("red", out var red);
+            colors.TryGetValue("green", out var green);
+            colors.TryGetValue("blue", out var blue);
+
+            groups.Add(new Group(red, green, blue));
+        }
+
+        return new Game(id, groups);
+    }
+
+    record Game(int Id, List<Group> Groups);
+    record Group(int Red, int Green, int Blue);
+}

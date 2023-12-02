@@ -7,4 +7,9 @@ public static class StringExtensions
         return str.Split(new[] { "\r\n", "\r", "\n" },
             removeEmptyLines ? StringSplitOptions.RemoveEmptyEntries : StringSplitOptions.None);
     }
+
+    public static IEnumerable<TResult> ParseLines<TResult>(this string str, Func<string, TResult> lineParser)
+    {
+        return str.GetLines().Select(lineParser);
+    }
 }
