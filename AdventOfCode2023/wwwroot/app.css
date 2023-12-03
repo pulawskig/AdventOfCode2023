@@ -51,5 +51,6 @@ h1:focus {
 }
 
 textarea {
-    width: 500px;
+    width: 100%;
+    font-family: Consolas;
 }

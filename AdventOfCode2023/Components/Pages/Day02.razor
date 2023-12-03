@@ -79,6 +79,6 @@
         return new Game(id, groups);
     }
 
-    record Game(int Id, List<Group> Groups);
-    record Group(int Red, int Green, int Blue);
+    record struct Game(int Id, List<Group> Groups);
+    record struct Group(int Red, int Green, int Blue);
 }

@@ -1,0 +1,112 @@
+﻿@page "/day03"
+@rendermode InteractiveServer
+
+<PageTitle>Day 03</PageTitle>
+
+<h1>Day 03</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+@* <textarea @oninput="HandleInputChange" rows="10">@DebugData</textarea> *@
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+
+@code {
+    public string InputData { get; set; } = string.Empty;
+    public string DebugData { get; set; } = string.Empty;
+    public long Result1 { get; set; } = 0;
+    public long Result2 { get; set; } = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        InputData = await File.ReadAllTextAsync($"{Directory.GetCurrentDirectory()}{@"\wwwroot\input\day03.txt"}");
+    }
+
+    public void HandleInputChange(ChangeEventArgs args)
+    {
+        InputData = args.Value?.ToString() ?? string.Empty;
+    }
+
+    public void RunPart1()
+    {
+        var schematic = ParseInput();
+
+        Result1 = schematic.Numbers
+            .Select(num => (value: num.Value, minX: num.X - 1, maxX: num.X + num.Length, minY: num.Y - 1, maxY: num.Y + 1))
+            .Where(num => schematic.Symbols.Any(sym => sym.X >= num.minX && sym.X <= num.maxX && sym.Y >= num.minY && sym.Y <= num.maxY))
+            .Sum(num => num.value);
+    }
+
+    public void RunPart2()
+    {
+        var schematic = ParseInput();
+
+        Result2 = schematic.Symbols
+            .Where(sym => sym.Value == '*')
+            .Select(sym => schematic.Numbers.Where(num => num.Y >= sym.Y - 1 && num.Y <= sym.Y + 1 && num.X >= sym.X - num.Length && num.X <= sym.X + 1).ToArray())
+            .Where(numbers => numbers.Length == 2)
+            .Sum(numbers => numbers[0].Value * numbers[1].Value);
+    }
+
+    private Schematic ParseInput()
+    {
+        var board = InputData.GetLines().Select(line => line.ToArray()).ToArray();
+        var numbers = new List<Number>();
+        var symbols = new List<Symbol>();
+
+        for (var y = 0; y < board.Length; y++)
+        {
+            var value = 0;
+            var firstX = -1;
+
+            for (var x = 0; x < board[y].Length; x++)
+            {
+                var current = board[y][x];
+
+                if (char.IsDigit(current))
+                {
+                    if (firstX < 0)
+                    {
+                        firstX = x;
+                    }
+
+                    value *= 10;
+                    value += current - '0';
+                    continue;
+                }
+                else if (value > 0)
+                {
+                    numbers.Add(new Number(value, firstX, y, x - firstX));
+                    value = 0;
+                    firstX = -1;
+                }
+
+                if (current == '.')
+                {
+                    continue;
+                }
+                else
+                {
+                    symbols.Add(new Symbol(current, x, y));
+                }
+            }
+
+            if (value > 0)
+            {
+                numbers.Add(new Number(value, firstX, y, board[y].Length - firstX));
+            }
+        }
+
+        return new Schematic(board, numbers, symbols);
+    }
+
+    record struct Schematic(char[][] Board, List<Number> Numbers, List<Symbol> Symbols);
+    record struct Number(int Value, int X, int Y, int Length);
+    record struct Symbol(char Value, int X, int Y);
+}
