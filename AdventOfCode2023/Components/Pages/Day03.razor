@@ -16,12 +16,28 @@
 <button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
 <p>Result: @Result2</p>
 
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Parse (first): @ParseFirst.TotalMicroseconds us</p>
+<p>Parse (average of 10 000): @ParseAverage.TotalMicroseconds us</p>
+<p>Part 1 (first): @Part1First.TotalMicroseconds us</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMicroseconds us</p>
+<p>Part 2 (first): @Part2First.TotalMicroseconds us</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMicroseconds us</p>
+
 
 @code {
     public string InputData { get; set; } = string.Empty;
     public string DebugData { get; set; } = string.Empty;
     public long Result1 { get; set; } = 0;
     public long Result2 { get; set; } = 0;
+
+    private TimeSpan ParseFirst { get; set; }
+    private TimeSpan ParseAverage { get; set; }
+    private TimeSpan Part1First { get; set; }
+    private TimeSpan Part1Average { get; set; }
+    private TimeSpan Part2First { get; set; }
+    private TimeSpan Part2Average { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -36,8 +52,12 @@
     public void RunPart1()
     {
         var schematic = ParseInput();
+        Result1 = GetResult1(schematic);
+    }
 
-        Result1 = schematic.Numbers
+    private long GetResult1(Schematic schematic)
+    {
+        return schematic.Numbers
             .Select(num => (value: num.Value, minX: num.X - 1, maxX: num.X + num.Length, minY: num.Y - 1, maxY: num.Y + 1))
             .Where(num => schematic.Symbols.Any(sym => sym.X >= num.minX && sym.X <= num.maxX && sym.Y >= num.minY && sym.Y <= num.maxY))
             .Sum(num => num.value);
@@ -46,12 +66,58 @@
     public void RunPart2()
     {
         var schematic = ParseInput();
+        Result2 = GetResult2(schematic);
+    }
 
-        Result2 = schematic.Symbols
+    private long GetResult2(Schematic schematic)
+    {
+        return schematic.Symbols
             .Where(sym => sym.Value == '*')
             .Select(sym => schematic.Numbers.Where(num => num.Y >= sym.Y - 1 && num.Y <= sym.Y + 1 && num.X >= sym.X - num.Length && num.X <= sym.X + 1).ToArray())
             .Where(numbers => numbers.Length == 2)
             .Sum(numbers => numbers[0].Value * numbers[1].Value);
+    }
+
+    public void RunBenchmark()
+    {
+        var timestamp = Stopwatch.GetTimestamp();
+        var schematic = ParseInput();
+        ParseFirst = Stopwatch.GetElapsedTime(timestamp);
+
+        var spans = new List<TimeSpan>();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            ParseInput();
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        ParseAverage = spans.AverageTime();
+
+        timestamp = Stopwatch.GetTimestamp();
+        GetResult1(schematic);
+        Part1First = Stopwatch.GetElapsedTime(timestamp);
+
+        spans.Clear();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            GetResult1(schematic);
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part1Average = spans.AverageTime();
+
+        timestamp = Stopwatch.GetTimestamp();
+        GetResult2(schematic);
+        Part2First = Stopwatch.GetElapsedTime(timestamp);
+
+        spans.Clear();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            GetResult2(schematic);
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part2Average = spans.AverageTime();
     }
 
     private Schematic ParseInput()

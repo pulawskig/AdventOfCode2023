@@ -15,11 +15,27 @@
 <button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
 <p>Result: @Result2</p>
 
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Parse (first): @ParseFirst.TotalMicroseconds us</p>
+<p>Parse (average of 10 000): @ParseAverage.TotalMicroseconds us</p>
+<p>Part 1 (first): @Part1First.TotalMicroseconds us</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMicroseconds us</p>
+<p>Part 2 (first): @Part2First.TotalMicroseconds us</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMicroseconds us</p>
+
 
 @code {
     public string InputData { get; set; } = string.Empty;
     public long Result1 { get; set; } = 0;
     public long Result2 { get; set; } = 0;
+
+    private TimeSpan ParseFirst { get; set; }
+    private TimeSpan ParseAverage { get; set; }
+    private TimeSpan Part1First { get; set; }
+    private TimeSpan Part1Average { get; set; }
+    private TimeSpan Part2First { get; set; }
+    private TimeSpan Part2Average { get; set; }
 
     private readonly Regex gameRegex = new Regex(@"Game (\d+): (.*)");
     private readonly Regex groupRegex = new Regex(@"(\d+) (red|green|blue)");
@@ -40,21 +56,78 @@
         InputData = args.Value?.ToString() ?? string.Empty;
     }
 
+    private Game[] ParseInput()
+    {
+        return InputData.ParseLines(this.ParseLine).ToArray();
+    }
+
     public void RunPart1()
     {
-        Result1 = InputData
-            .ParseLines(this.ParseLine)
+        var input = ParseInput();
+        Result1 = GetResult1(input);
+    }
+
+    private long GetResult1(Game[] input)
+    {
+        return input
             .Where(game => game.Groups.All(group => group.Red <= 12 && group.Green <= 13 && group.Blue <= 14))
             .Sum(game => game.Id);
     }
 
     public void RunPart2()
     {
-        Result2 = InputData
-            .ParseLines(this.ParseLine)
+        var input = ParseInput();
+        Result2 = GetResult2(input);
+    }
+
+    private long GetResult2(Game[] input)
+    {
+        return input
             .Select(game => (red: game.Groups.Max(g => g.Red), green: game.Groups.Max(g => g.Green), blue: game.Groups.Max(g => g.Blue)))
             .Select(x => x.red * x.green * x.blue)
             .Sum();
+    }
+
+    public void RunBenchmark()
+    {
+        var timestamp = Stopwatch.GetTimestamp();
+        var schematic = ParseInput();
+        ParseFirst = Stopwatch.GetElapsedTime(timestamp);
+
+        var spans = new List<TimeSpan>();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            ParseInput();
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        ParseAverage = spans.AverageTime();
+
+        timestamp = Stopwatch.GetTimestamp();
+        GetResult1(schematic);
+        Part1First = Stopwatch.GetElapsedTime(timestamp);
+
+        spans.Clear();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            GetResult1(schematic);
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part1Average = spans.AverageTime();
+
+        timestamp = Stopwatch.GetTimestamp();
+        GetResult2(schematic);
+        Part2First = Stopwatch.GetElapsedTime(timestamp);
+
+        spans.Clear();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            GetResult2(schematic);
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part2Average = spans.AverageTime();
     }
 
     private Game ParseLine(string line)

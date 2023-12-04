@@ -6,7 +6,6 @@
 <h1>Day 01</h1>
 <h3>Input</h3>
 <textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
-<textarea rows="10">@InputData2</textarea>
 
 <h3>Part 1</h3>
 <button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
@@ -16,12 +15,23 @@
 <button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
 <p>Result: @Result2</p>
 
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Part 1 (first): @Part1First.TotalMicroseconds us</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMicroseconds us</p>
+<p>Part 2 (first): @Part2First.TotalMicroseconds us</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMicroseconds us</p>
+
 
 @code {
     public string InputData { get; set; } = string.Empty;
-    public string InputData2 { get; set; } = string.Empty;
     public long Result1 { get; set; } = 0;
     public long Result2 { get; set; } = 0;
+
+    private TimeSpan Part1First { get; set; }
+    private TimeSpan Part1Average { get; set; }
+    private TimeSpan Part2First { get; set; }
+    private TimeSpan Part2Average { get; set; }
 
     private readonly string[] splitCharacters = new[] { "\r\n", "\r", "\n" };
     private readonly Dictionary<string, string> numbersAsText = new Dictionary<string, string>
@@ -56,8 +66,36 @@
     public void RunPart2()
     {
         var lines = InputData.GetLines().Select(line => numbersAsText.Aggregate(line, (current, replacement) => current.Replace(replacement.Key, replacement.Value)));
-        InputData2 = string.Join("\r\n", lines);
         Result2 = GetResultFromLines(lines);
+    }
+
+    public void RunBenchmark()
+    {
+        var timestamp = Stopwatch.GetTimestamp();
+        RunPart1();
+        Part1First = Stopwatch.GetElapsedTime(timestamp);
+
+        var spans = new List<TimeSpan>();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            RunPart1();
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part1Average = spans.AverageTime();
+
+        timestamp = Stopwatch.GetTimestamp();
+        RunPart2();
+        Part2First = Stopwatch.GetElapsedTime(timestamp);
+
+        spans.Clear();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            RunPart2();
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part2Average = spans.AverageTime();
     }
 
     private int GetResultFromLines(IEnumerable<string> lines)
