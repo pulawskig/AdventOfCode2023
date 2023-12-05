@@ -1,0 +1,287 @@
+﻿@page "/day05"
+@rendermode InteractiveServer
+
+<PageTitle>Day 05</PageTitle>
+
+<h1>Day 05</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Parse (first): @ParseFirst.TotalMilliseconds ms</p>
+<p>Parse (average of 10 000): @ParseAverage.TotalMilliseconds ms</p>
+<p>Part 1 (first): @Part1First.TotalMilliseconds ms</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMilliseconds ms</p>
+<p>Part 2 (first): @Part2First.TotalMilliseconds ms</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMilliseconds ms</p>
+
+
+@code {
+    public string InputData { get; set; } = string.Empty;
+    public string DebugData { get; set; } = string.Empty;
+    public long Result1 { get; set; } = 0;
+    public long Result2 { get; set; } = 0;
+
+    private TimeSpan ParseFirst { get; set; }
+    private TimeSpan ParseAverage { get; set; }
+    private TimeSpan Part1First { get; set; }
+    private TimeSpan Part1Average { get; set; }
+    private TimeSpan Part2First { get; set; }
+    private TimeSpan Part2Average { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        InputData = await File.ReadAllTextAsync($"{Directory.GetCurrentDirectory()}{@"\wwwroot\input\day05.txt"}");
+    }
+
+    public void HandleInputChange(ChangeEventArgs args)
+    {
+        InputData = args.Value?.ToString() ?? string.Empty;
+    }
+
+    public void RunPart1()
+    {
+        var input = ParseInput();
+        Result1 = GetResult1(input);
+    }
+
+    private long GetResult1(Almanac input)
+    {
+        return input.Seeds
+            .Select(input.MapSeedToSoil)
+            .Select(input.MapSoilToFertilizer)
+            .Select(input.MapFertilizerToWater)
+            .Select(input.MapWaterToLight)
+            .Select(input.MapLightToTemperature)
+            .Select(input.MapTemperatureToHumidity)
+            .Select(input.MapHumidityToLocation)
+            .Min();
+
+    }
+
+    public void RunPart2()
+    {
+        var input = ParseInput();
+        Result2 = GetResult2(input);
+    }
+
+    private long GetResult2(Almanac input)
+    {
+        var soils = input.Map(input.SeedToSoil, input.SeedRanges);
+        var fertilizers = input.Map(input.SoilToFertilizer, soils);
+        var waters = input.Map(input.FertilizerToWater, fertilizers);
+        var lights = input.Map(input.WaterToLight, waters);
+        var temperatures = input.Map(input.LightToTemperature, lights);
+        var humidities = input.Map(input.TemperatureToHumidity, temperatures);
+        var locations = input.Map(input.HumidityToLocation, humidities);
+
+        return locations.Min(x => x.Start);
+    }
+
+    public void RunBenchmark()
+    {
+        var timestamp = Stopwatch.GetTimestamp();
+        var input = ParseInput();
+        ParseFirst = Stopwatch.GetElapsedTime(timestamp);
+
+        var spans = new List<TimeSpan>();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            ParseInput();
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        ParseAverage = spans.AverageTime();
+
+        timestamp = Stopwatch.GetTimestamp();
+        GetResult1(input);
+        Part1First = Stopwatch.GetElapsedTime(timestamp);
+
+        spans.Clear();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            GetResult1(input);
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part1Average = spans.AverageTime();
+
+        timestamp = Stopwatch.GetTimestamp();
+        GetResult2(input);
+        Part2First = Stopwatch.GetElapsedTime(timestamp);
+
+        spans.Clear();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            GetResult2(input);
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part2Average = spans.AverageTime();
+    }
+
+    private Almanac ParseInput()
+    {
+        var lines = InputData.GetLines().ToArray();
+        var seeds = lines[0].Substring(7).Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(long.Parse).ToArray();
+
+        var ranges = new List<SeedRange>();
+        for (var i = 0; i < seeds.Length; i += 2)
+        {
+            ranges.Add(new SeedRange
+            {
+                Start = seeds[i],
+                Length = seeds[i + 1],
+            });
+        }
+
+        var almanac = new Almanac
+        {
+            Seeds = seeds,
+            SeedRanges = ranges,
+        };
+
+        var index = 0;
+        foreach (var line in lines.Skip(2))
+        {
+            if (!char.IsDigit(line[0]))
+            {
+                index++;
+                continue;
+            }
+
+            var numbers = line.Split(' ').Select(long.Parse).ToArray();
+            var list = index switch
+            {
+                0 => almanac.SeedToSoil,
+                1 => almanac.SoilToFertilizer,
+                2 => almanac.FertilizerToWater,
+                3 => almanac.WaterToLight,
+                4 => almanac.LightToTemperature,
+                5 => almanac.TemperatureToHumidity,
+                6 => almanac.HumidityToLocation,
+                _ => throw new NotImplementedException(),
+            };
+
+            list.Add(new Mapping
+            {
+                TargetStart = numbers[0],
+                SourceStart = numbers[1],
+                Length = numbers[2],
+            });
+        }
+
+        return almanac;
+    }
+
+    class Almanac
+    {
+        public long[] Seeds { get; init; }
+        public List<SeedRange> SeedRanges { get; init; }
+        public List<Mapping> SeedToSoil { get; } = new();
+        public List<Mapping> SoilToFertilizer { get; } = new();
+        public List<Mapping> FertilizerToWater { get; } = new();
+        public List<Mapping> WaterToLight { get; } = new();
+        public List<Mapping> LightToTemperature { get; } = new();
+        public List<Mapping> TemperatureToHumidity { get; } = new();
+        public List<Mapping> HumidityToLocation { get; } = new();
+
+        public long MapSeedToSoil(long seed) => Map(SeedToSoil, seed);
+        public long MapSoilToFertilizer(long soil) => Map(SoilToFertilizer, soil);
+        public long MapFertilizerToWater(long fertilizer) => Map(FertilizerToWater, fertilizer);
+        public long MapWaterToLight(long water) => Map(WaterToLight, water);
+        public long MapLightToTemperature(long light) => Map(LightToTemperature, light);
+        public long MapTemperatureToHumidity(long temperature) => Map(TemperatureToHumidity, temperature);
+        public long MapHumidityToLocation(long humidity) => Map(HumidityToLocation, humidity);
+
+        private long Map(List<Mapping> mappings, long source)
+        {
+            return mappings.Select(m => m.TryMap(source)).FirstOrDefault(x => x.HasValue) ?? source;
+        }
+
+        public List<SeedRange> Map(List<Mapping> mappings, List<SeedRange> ranges)
+        {
+            var queue = new Queue<SeedRange>(ranges);
+            var mapped = new List<SeedRange>();
+
+            while (queue.Count > 0)
+            {
+                var range = queue.Dequeue();
+                var mapping = mappings.FirstOrDefault(m => Math.Max(range.Start, m.SourceStart) <= Math.Min(range.End, m.SourceEnd));
+
+                if (mapping == null)
+                {
+                    mapped.Add(range);
+                    continue;
+                }
+
+                var start = Math.Max(range.Start, mapping.SourceStart);
+                var offset = start - mapping.SourceStart;
+                var end = Math.Min(range.End, mapping.SourceEnd);
+                var length = end - start + 1;
+
+                mapped.Add(new SeedRange
+                {
+                    Start = mapping.TargetStart + offset,
+                    Length = length,
+                });
+
+                if (start > range.Start)
+                {
+                    var len = start - range.Start;
+                    len += start == range.End ? 0 : 1;
+
+                    queue.Enqueue(new SeedRange
+                    {
+                        Start = range.Start,
+                        Length = len,
+                    });
+                }
+
+                if (end + 1 < range.End)
+                {
+                    queue.Enqueue(new SeedRange
+                    {
+                        Start = end + 1,
+                            Length = range.End - end,
+                    });
+                }
+            }
+
+            return mapped;
+        }
+    }
+
+    class Mapping
+    {
+        public long SourceStart { get; init; }
+        public long TargetStart { get; init; }
+        public long Length { get; init; }
+
+        public long SourceEnd => SourceStart + Length - 1;
+        public long TargetEnd => TargetStart + Length - 1;
+
+        public long? TryMap(long source)
+        {
+            var diff = source - SourceStart;
+            return diff >= 0 && diff < Length ? TargetStart + diff : null;
+        }
+    }
+
+    class SeedRange
+    {
+        public long Start { get; init; }
+        public long Length { get; init; }
+
+        public long End => Start + Length - 1;
+    }
+}
