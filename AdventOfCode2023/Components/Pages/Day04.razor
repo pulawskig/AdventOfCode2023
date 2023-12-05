@@ -1,0 +1,149 @@
+﻿@page "/day04"
+@rendermode InteractiveServer
+
+<PageTitle>Day 04</PageTitle>
+
+<h1>Day 04</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Parse (first): @ParseFirst.TotalMicroseconds us</p>
+<p>Parse (average of 10 000): @ParseAverage.TotalMicroseconds us</p>
+<p>Part 1 (first): @Part1First.TotalMicroseconds us</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMicroseconds us</p>
+<p>Part 2 (first): @Part2First.TotalMicroseconds us</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMicroseconds us</p>
+
+
+@code {
+    public string InputData { get; set; } = string.Empty;
+    public string DebugData { get; set; } = string.Empty;
+    public long Result1 { get; set; } = 0;
+    public long Result2 { get; set; } = 0;
+
+    private TimeSpan ParseFirst { get; set; }
+    private TimeSpan ParseAverage { get; set; }
+    private TimeSpan Part1First { get; set; }
+    private TimeSpan Part1Average { get; set; }
+    private TimeSpan Part2First { get; set; }
+    private TimeSpan Part2Average { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        InputData = await File.ReadAllTextAsync($"{Directory.GetCurrentDirectory()}{@"\wwwroot\input\day04.txt"}");
+    }
+
+    public void HandleInputChange(ChangeEventArgs args)
+    {
+        InputData = args.Value?.ToString() ?? string.Empty;
+    }
+
+    public void RunPart1()
+    {
+        var schematic = ParseInput();
+        Result1 = GetResult1(schematic);
+    }
+
+    private long GetResult1(Card[] input)
+    {
+        return input
+            .Select(card => card.Selected.Where(card.Winning.Contains).Count())
+            .Select(count => count > 0 ? (long)Math.Pow(2, count - 1) : 0)
+            .Sum();
+    }
+
+    public void RunPart2()
+    {
+        var schematic = ParseInput();
+        Result2 = GetResult2(schematic);
+    }
+
+    private long GetResult2(Card[] input)
+    {
+        var queue = new Queue<Card>(input);
+        var countMap = new Dictionary<int, int>();
+        var count = 0L;
+        while (queue.Count > 0)
+        {
+            var card = queue.Dequeue();
+            count++;
+
+            int winning;
+            if (!countMap.TryGetValue(card.Number, out winning))
+            {
+                winning = card.Selected.Where(card.Winning.Contains).Count();
+                countMap.Add(card.Number, winning);
+            }
+
+            for (var i = 0; i < winning; i++)
+            {
+                queue.Enqueue(input[card.Number + i]);
+            }
+        }
+        return count;
+    }
+
+    public void RunBenchmark()
+    {
+        var timestamp = Stopwatch.GetTimestamp();
+        var schematic = ParseInput();
+        ParseFirst = Stopwatch.GetElapsedTime(timestamp);
+
+        var spans = new List<TimeSpan>();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            ParseInput();
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        ParseAverage = spans.AverageTime();
+
+        timestamp = Stopwatch.GetTimestamp();
+        GetResult1(schematic);
+        Part1First = Stopwatch.GetElapsedTime(timestamp);
+
+        spans.Clear();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            GetResult1(schematic);
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part1Average = spans.AverageTime();
+
+        timestamp = Stopwatch.GetTimestamp();
+        GetResult2(schematic);
+        Part2First = Stopwatch.GetElapsedTime(timestamp);
+
+        spans.Clear();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            GetResult2(schematic);
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part2Average = spans.AverageTime();
+    }
+
+    private Card[] ParseInput()
+    {
+        return InputData
+            .GetLines()
+            .Select(line => line.Substring(10))
+            .Select(line => line.Split('|'))
+            .Select((split, i) => new Card(i + 1, split[0].Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToArray(), split[1].Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToArray()))
+            .ToArray();
+    }
+
+    record struct Card(int Number, int[] Winning, int[] Selected);
+}
