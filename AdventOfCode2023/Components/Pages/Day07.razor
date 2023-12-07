@@ -1,0 +1,254 @@
+﻿@page "/day07"
+@rendermode InteractiveServer
+
+<PageTitle>Day 07</PageTitle>
+
+<h1>Day 07</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Parse (first): @ParseFirst.TotalMilliseconds ms</p>
+<p>Parse (average of 10 000): @ParseAverage.TotalMilliseconds ms</p>
+<p>Part 1 (first): @Part1First.TotalMilliseconds ms</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMilliseconds ms</p>
+<p>Part 2 (first): @Part2First.TotalMilliseconds ms</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMilliseconds ms</p>
+
+
+@code {
+    public string InputData { get; set; } = string.Empty;
+    public string DebugData { get; set; } = string.Empty;
+    public long Result1 { get; set; } = 0;
+    public long Result2 { get; set; } = 0;
+
+    private TimeSpan ParseFirst { get; set; }
+    private TimeSpan ParseAverage { get; set; }
+    private TimeSpan Part1First { get; set; }
+    private TimeSpan Part1Average { get; set; }
+    private TimeSpan Part2First { get; set; }
+    private TimeSpan Part2Average { get; set; }
+
+    public static Dictionary<char, int> CardMapPart1 = new Dictionary<char, int>
+    {
+        { '2', 2 },
+        { '3', 3 },
+        { '4', 4 },
+        { '5', 5 },
+        { '6', 6 },
+        { '7', 7 },
+        { '8', 8 },
+        { '9', 9 },
+        { 'T', 10 },
+        { 'J', 11 },
+        { 'Q', 12 },
+        { 'K', 13 },
+        { 'A', 14 },
+    };
+
+    public static Dictionary<char, int> CardMapPart2 = new Dictionary<char, int>
+    {
+        { 'J', 1 },
+        { '2', 2 },
+        { '3', 3 },
+        { '4', 4 },
+        { '5', 5 },
+        { '6', 6 },
+        { '7', 7 },
+        { '8', 8 },
+        { '9', 9 },
+        { 'T', 10 },
+        { 'Q', 12 },
+        { 'K', 13 },
+        { 'A', 14 },
+    };
+
+    private Dictionary<int, HandType> handTypes = new Dictionary<int, HandType>
+    {
+        { 7, new HandType("Five of a kind", 7, 1, new[] { 5 }) },
+        { 6, new HandType("Four of a kind", 6, 2, new[] { 4, 1 }) },
+        { 5, new HandType("Full house", 5, 2, new[] { 3, 2 }) },
+        { 4, new HandType("Three of a kind", 4, 3, new[] { 3, 1, 1 }) },
+        { 3, new HandType("Two pair", 3, 3, new[] { 2, 2, 1 }) },
+        { 2, new HandType("One pair", 2, 4, new[] { 2, 1, 1, 1 }) },
+        { 1, new HandType("High card", 1, 5, new[] { 1, 1, 1, 1, 1 }) },
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        InputData = await File.ReadAllTextAsync($"{Directory.GetCurrentDirectory()}{@"\wwwroot\input\day07.txt"}");
+    }
+
+    public void HandleInputChange(ChangeEventArgs args)
+    {
+        InputData = args.Value?.ToString() ?? string.Empty;
+    }
+
+    public void RunPart1()
+    {
+        var input = ParseInput();
+        Result1 = GetResult1(input);
+    }
+
+    private long GetResult1(Hand[] input)
+    {
+        return input
+            .OrderBy(hand => hand, new HandPart1Comparer())
+            .Select((hand, i) => hand.Bid * (i + 1))
+            .Sum();
+    }
+
+    public void RunPart2()
+    {
+        var input = ParseInput();
+        Result2 = GetResult2(input);
+    }
+
+    private long GetResult2(Hand[] input)
+    {
+        return input
+            .OrderBy(hand => hand, new HandPart2Comparer())
+            .Select((hand, i) => hand.Bid * (i + 1))
+            .Sum();
+    }
+
+    public void RunBenchmark()
+    {
+        var timestamp = Stopwatch.GetTimestamp();
+        var input = ParseInput();
+        ParseFirst = Stopwatch.GetElapsedTime(timestamp);
+
+        var spans = new List<TimeSpan>();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            ParseInput();
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        ParseAverage = spans.AverageTime();
+
+        timestamp = Stopwatch.GetTimestamp();
+        GetResult1(input);
+        Part1First = Stopwatch.GetElapsedTime(timestamp);
+
+        spans.Clear();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            GetResult1(input);
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part1Average = spans.AverageTime();
+
+        timestamp = Stopwatch.GetTimestamp();
+        GetResult2(input);
+        Part2First = Stopwatch.GetElapsedTime(timestamp);
+
+        spans.Clear();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            GetResult2(input);
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part2Average = spans.AverageTime();
+    }
+
+    private Hand[] ParseInput()
+    {
+        return InputData
+            .GetLines()
+            .Select(line => line.Split(' '))
+            .Select(split => (cards: split[0], bid: long.Parse(split[1])))
+            .Select(MapHand)
+            .ToArray();
+    }
+
+    private Hand MapHand((string cards, long bid) handValue)
+    {
+        var cardGroups = handValue.cards
+            .GroupBy(c => c)
+            .Select(group => (group.Key, Count: group.Count()))
+            .OrderByDescending(x => x.Count)
+            .ToArray();
+
+        var typeValue = MapGroupToTypeValue(cardGroups.Select(x => x.Count).ToArray());
+
+        var type = handTypes[typeValue];
+        var type2 = type;
+
+        if (handValue.cards.Contains('J') && cardGroups.Length > 1)
+        {
+            var replacement = cardGroups.Where(x => x.Key != 'J').First();
+            var jokers = cardGroups.First(x => x.Key == 'J');
+
+            var cardGroups2 = cardGroups
+                .Where(x => x.Key != replacement.Key && x.Key != 'J')
+                .Select(x => x.Count)
+                .Prepend(replacement.Count + jokers.Count)
+                .ToArray();
+
+            typeValue = MapGroupToTypeValue(cardGroups2);
+            type2 = handTypes[typeValue];
+        }
+
+        return new Hand(handValue.cards, handValue.bid, type, type2);
+    }
+
+    private int MapGroupToTypeValue(int[] cardGroups) => cardGroups switch
+    {
+        [5] => 7,
+        [4, 1] => 6,
+        [3, 2] => 5,
+        [3, 1, 1] => 4,
+        [2, 2, 1] => 3,
+        [2, 1, 1, 1] => 2,
+        _ => 1
+    };
+
+    record struct HandType(string Name, int Value, int GroupCount, int[] GroupSizes);
+    record struct Hand(string Cards, long Bid, HandType TypePart1, HandType TypePart2);
+
+    class HandPart1Comparer : IComparer<Hand>
+    {
+        public int Compare(Hand x, Hand y)
+        {
+            if (x.TypePart1.Value == y.TypePart1.Value)
+            {
+                for (var i = 0; i < x.Cards.Length; i++)
+                {
+                    if (x.Cards[i] == y.Cards[i]) continue;
+                    return CardMapPart1[x.Cards[i]] - CardMapPart1[y.Cards[i]];
+                }
+            }
+
+            return x.TypePart1.Value - y.TypePart1.Value;
+        }
+    }
+
+    class HandPart2Comparer : IComparer<Hand>
+    {
+        public int Compare(Hand x, Hand y)
+        {
+            if (x.TypePart2.Value == y.TypePart2.Value)
+            {
+                for (var i = 0; i < x.Cards.Length; i++)
+                {
+                    if (x.Cards[i] == y.Cards[i]) continue;
+                    return CardMapPart2[x.Cards[i]] - CardMapPart2[y.Cards[i]];
+                }
+            }
+
+            return x.TypePart2.Value - y.TypePart2.Value;
+        }
+    }
+}
