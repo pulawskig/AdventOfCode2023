@@ -1,0 +1,269 @@
+﻿@page "/day10"
+@rendermode InteractiveServer
+
+<PageTitle>Day 10</PageTitle>
+
+<h1>Day 10</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Parse (first): @ParseFirst.TotalMilliseconds ms</p>
+<p>Parse (average of 10 000): @ParseAverage.TotalMilliseconds ms</p>
+<p>Part 1 (first): @Part1First.TotalMilliseconds ms</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMilliseconds ms</p>
+<p>Part 2 (first): @Part2First.TotalMilliseconds ms</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMilliseconds ms</p>
+
+
+@code {
+    public string InputData { get; set; } = string.Empty;
+    public string DebugData { get; set; } = string.Empty;
+    public long Result1 { get; set; } = 0;
+    public long Result2 { get; set; } = 0;
+
+    private TimeSpan ParseFirst { get; set; }
+    private TimeSpan ParseAverage { get; set; }
+    private TimeSpan Part1First { get; set; }
+    private TimeSpan Part1Average { get; set; }
+    private TimeSpan Part2First { get; set; }
+    private TimeSpan Part2Average { get; set; }
+
+    private static Tile InvalidTile = new Tile
+    {
+        Type = TileType.Ground,
+        X = -1,
+        Y = -1,
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        InputData = await File.ReadAllTextAsync($"{Directory.GetCurrentDirectory()}{@"\wwwroot\input\day10.txt"}");
+    }
+
+    public void HandleInputChange(ChangeEventArgs args)
+    {
+        InputData = args.Value?.ToString() ?? string.Empty;
+    }
+
+    public void RunPart1()
+    {
+        var input = ParseInput();
+        Result1 = GetResult1(input);
+    }
+
+    private long GetResult1((Tile[][] tiles, Tile start) input)
+    {
+        var previous = input.start;
+        var next = previous.X > 0 && input.tiles[previous.Y][previous.X - 1].IsEast()
+            ? input.tiles[previous.Y][previous.X - 1]
+            : previous.X < input.tiles[0].Length - 1 && input.tiles[previous.Y][previous.X + 1].IsWest()
+                ? input.tiles[previous.Y][previous.X + 1]
+                : previous.Y > 0 && input.tiles[previous.Y - 1][previous.X].IsSouth()
+                    ? input.tiles[previous.Y - 1][previous.X]
+                    : input.tiles[previous.Y + 1][previous.X];
+
+        var distance = 1L;
+        while (next.Type != TileType.Start)
+        {
+            next.Distance = distance++;
+
+            var temp = next;
+            next = next.Travel(input.tiles, previous);
+            previous = temp;
+        }
+
+        return (long)Math.Ceiling((distance - 1) / 2d);
+    }
+
+    public void RunPart2()
+    {
+        var input = ParseInput();
+        Result2 = GetResult2(input);
+    }
+
+    private long GetResult2((Tile[][] tiles, Tile start) input)
+    {
+        var previous = input.start;
+        var next = previous.X > 0 && input.tiles[previous.Y][previous.X - 1].IsEast()
+            ? input.tiles[previous.Y][previous.X - 1]
+            : previous.X < input.tiles[0].Length - 1 && input.tiles[previous.Y][previous.X + 1].IsWest()
+                ? input.tiles[previous.Y][previous.X + 1]
+                : previous.Y > 0 && input.tiles[previous.Y - 1][previous.X].IsSouth()
+                    ? input.tiles[previous.Y - 1][previous.X]
+                    : input.tiles[previous.Y + 1][previous.X];
+
+        var distance = 1L;
+        var areaSum = 0L + (previous.X * next.Y) - (next.X * previous.Y);
+
+        while (next.Type != TileType.Start)
+        {
+            next.Distance = distance++;
+
+            var temp = next;
+            next = next.Travel(input.tiles, previous);
+            previous = temp;
+
+            areaSum += (previous.X * next.Y) - (next.X * previous.Y);
+        }
+
+        var area = Math.Abs(areaSum) / 2d;
+        var halfDistance = (long)Math.Ceiling((distance - 1) / 2d);
+
+        return (long)Math.Ceiling(area - halfDistance + 1);
+    }
+
+    public void RunBenchmark()
+    {
+        var timestamp = Stopwatch.GetTimestamp();
+        var input = ParseInput();
+        ParseFirst = Stopwatch.GetElapsedTime(timestamp);
+
+        var spans = new List<TimeSpan>();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            ParseInput();
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        ParseAverage = spans.AverageTime();
+
+        timestamp = Stopwatch.GetTimestamp();
+        GetResult1(input);
+        Part1First = Stopwatch.GetElapsedTime(timestamp);
+
+        spans.Clear();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            GetResult1(input);
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part1Average = spans.AverageTime();
+
+        timestamp = Stopwatch.GetTimestamp();
+        GetResult2(input);
+        Part2First = Stopwatch.GetElapsedTime(timestamp);
+
+        spans.Clear();
+        for (var i = 0; i < 10_000; i++)
+        {
+            timestamp = Stopwatch.GetTimestamp();
+            GetResult2(input);
+            spans.Add(Stopwatch.GetElapsedTime(timestamp));
+        }
+        Part2Average = spans.AverageTime();
+    }
+
+    private (Tile[][] tiles, Tile start) ParseInput()
+    {
+        Tile start = null;
+
+        var tiles = InputData
+            .GetLines()
+            .Select((line, y) => line
+                .Select(ToTileType)
+                .Select((type, x) => new Tile
+                {
+                    Type = type,
+                    X = x,
+                    Y = y,
+                })
+                .Peek(tile =>
+                {
+                    if (tile.Type == TileType.Start)
+                    {
+                        start = tile;
+                    }
+                })
+                .ToArray())
+            .ToArray();
+
+        return (tiles, start!);
+    }
+
+    private TileType ToTileType(char c)
+    {
+        return c switch
+        {
+            'S' => TileType.Start,
+            '|' => TileType.NorthSouth,
+            '-' => TileType.EastWest,
+            'L' => TileType.NorthEast,
+            'J' => TileType.NorthWest,
+            '7' => TileType.SouthWest,
+            'F' => TileType.SouthEast,
+            _ => TileType.Ground,
+        };
+    }
+
+    enum TileType
+    {
+        Start, Ground, NorthSouth, EastWest, NorthEast, NorthWest, SouthEast, SouthWest
+    }
+
+    class Tile
+    {
+        public TileType Type { get; init; }
+
+        public int X { get; init; }
+
+        public int Y { get; init; }
+
+        public long Distance { get; set; }
+
+        public bool IsNorth()
+        {
+            return Type == TileType.NorthSouth || Type == TileType.NorthEast || Type == TileType.NorthWest;
+        }
+
+        public bool IsSouth()
+        {
+            return Type == TileType.NorthSouth || Type == TileType.SouthEast || Type == TileType.SouthWest;
+        }
+
+        public bool IsEast()
+        {
+            return Type == TileType.EastWest || Type == TileType.NorthEast || Type == TileType.SouthEast;
+        }
+
+        public bool IsWest()
+        {
+            return Type == TileType.EastWest || Type == TileType.NorthWest || Type == TileType.SouthWest;
+        }
+
+        public Tile Travel(Tile[][] tiles, Tile previous)
+        {
+            return (X - previous.X, Y - previous.Y, Type) switch
+            {
+                ( > 0, 0, TileType.EastWest) => tiles[Y][X + 1],
+                ( > 0, 0, TileType.NorthWest) => tiles[Y - 1][X],
+                ( > 0, 0, TileType.SouthWest) => tiles[Y + 1][X],
+                ( < 0, 0, TileType.EastWest) => tiles[Y][X - 1],
+                ( < 0, 0, TileType.NorthEast) => tiles[Y - 1][X],
+                ( < 0, 0, TileType.SouthEast) => tiles[Y + 1][X],
+                (0, > 0, TileType.NorthSouth) => tiles[Y + 1][X],
+                (0, > 0, TileType.NorthEast) => tiles[Y][X + 1],
+                (0, > 0, TileType.NorthWest) => tiles[Y][X - 1],
+                (0, < 0, TileType.NorthSouth) => tiles[Y - 1][X],
+                (0, < 0, TileType.SouthEast) => tiles[Y][X + 1],
+                (0, < 0, TileType.SouthWest) => tiles[Y][X - 1],
+                _ => InvalidTile,
+            };
+        }
+
+        public override string ToString()
+        {
+            return (Type, X, Y, Distance).ToString();
+        }
+    }
+}

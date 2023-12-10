@@ -14,4 +14,14 @@ public static class EnumerableExtensions
         var longAverage = Convert.ToInt64(doubleAverage);
         return new TimeSpan(longAverage);
     }
+
+    public static IEnumerable<T> Peek<T>(this IEnumerable<T> source, Action<T> action)
+    {
+        using var iterator = source.GetEnumerator();
+        while (iterator.MoveNext())
+        {
+            action(iterator.Current);
+            yield return iterator.Current;
+        }
+    }
 }
