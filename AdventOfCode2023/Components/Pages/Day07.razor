@@ -1,5 +1,6 @@
 ﻿@page "/day07"
 @rendermode InteractiveServer
+@inherits DayBase<Day07, Day07.Hand[]>
 
 <PageTitle>Day 07</PageTitle>
 
@@ -26,18 +27,6 @@
 
 
 @code {
-    public string InputData { get; set; } = string.Empty;
-    public string DebugData { get; set; } = string.Empty;
-    public long Result1 { get; set; } = 0;
-    public long Result2 { get; set; } = 0;
-
-    private TimeSpan ParseFirst { get; set; }
-    private TimeSpan ParseAverage { get; set; }
-    private TimeSpan Part1First { get; set; }
-    private TimeSpan Part1Average { get; set; }
-    private TimeSpan Part2First { get; set; }
-    private TimeSpan Part2Average { get; set; }
-
     public static Dictionary<char, int> CardMapPart1 = new Dictionary<char, int>
     {
         { '2', 2 },
@@ -83,23 +72,7 @@
         { 1, new HandType("High card", 1, 5, new[] { 1, 1, 1, 1, 1 }) },
     };
 
-    protected override async Task OnInitializedAsync()
-    {
-        InputData = await File.ReadAllTextAsync($"{Directory.GetCurrentDirectory()}{@"\wwwroot\input\day07.txt"}");
-    }
-
-    public void HandleInputChange(ChangeEventArgs args)
-    {
-        InputData = args.Value?.ToString() ?? string.Empty;
-    }
-
-    public void RunPart1()
-    {
-        var input = ParseInput();
-        Result1 = GetResult1(input);
-    }
-
-    private long GetResult1(Hand[] input)
+    protected override long GetResult1(Hand[] input)
     {
         return input
             .OrderBy(hand => hand, new HandPart1Comparer())
@@ -107,13 +80,7 @@
             .Sum();
     }
 
-    public void RunPart2()
-    {
-        var input = ParseInput();
-        Result2 = GetResult2(input);
-    }
-
-    private long GetResult2(Hand[] input)
+    protected override long GetResult2(Hand[] input)
     {
         return input
             .OrderBy(hand => hand, new HandPart2Comparer())
@@ -121,49 +88,7 @@
             .Sum();
     }
 
-    public void RunBenchmark()
-    {
-        var timestamp = Stopwatch.GetTimestamp();
-        var input = ParseInput();
-        ParseFirst = Stopwatch.GetElapsedTime(timestamp);
-
-        var spans = new List<TimeSpan>();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            ParseInput();
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        ParseAverage = spans.AverageTime();
-
-        timestamp = Stopwatch.GetTimestamp();
-        GetResult1(input);
-        Part1First = Stopwatch.GetElapsedTime(timestamp);
-
-        spans.Clear();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            GetResult1(input);
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        Part1Average = spans.AverageTime();
-
-        timestamp = Stopwatch.GetTimestamp();
-        GetResult2(input);
-        Part2First = Stopwatch.GetElapsedTime(timestamp);
-
-        spans.Clear();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            GetResult2(input);
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        Part2Average = spans.AverageTime();
-    }
-
-    private Hand[] ParseInput()
+    protected override Hand[] ParseInput()
     {
         return InputData
             .GetLines()
@@ -215,8 +140,8 @@
         _ => 1
     };
 
-    record struct HandType(string Name, int Value, int GroupCount, int[] GroupSizes);
-    record struct Hand(string Cards, long Bid, HandType TypePart1, HandType TypePart2);
+    public record struct HandType(string Name, int Value, int GroupCount, int[] GroupSizes);
+    public record struct Hand(string Cards, long Bid, HandType TypePart1, HandType TypePart2);
 
     class HandPart1Comparer : IComparer<Hand>
     {

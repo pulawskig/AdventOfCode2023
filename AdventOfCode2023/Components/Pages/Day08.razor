@@ -1,5 +1,6 @@
 ﻿@page "/day08"
 @rendermode InteractiveServer
+@inherits DayBase<Day08, (string Instructions, Dictionary<string, Day08.Node> Nodes)>
 
 <PageTitle>Day 08</PageTitle>
 
@@ -26,46 +27,13 @@
 
 
 @code {
-    public string InputData { get; set; } = string.Empty;
-    public string DebugData { get; set; } = string.Empty;
-    public long Result1 { get; set; } = 0;
-    public long Result2 { get; set; } = 0;
 
-    private TimeSpan ParseFirst { get; set; }
-    private TimeSpan ParseAverage { get; set; }
-    private TimeSpan Part1First { get; set; }
-    private TimeSpan Part1Average { get; set; }
-    private TimeSpan Part2First { get; set; }
-    private TimeSpan Part2Average { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        InputData = await File.ReadAllTextAsync($"{Directory.GetCurrentDirectory()}{@"\wwwroot\input\day08.txt"}");
-    }
-
-    public void HandleInputChange(ChangeEventArgs args)
-    {
-        InputData = args.Value?.ToString() ?? string.Empty;
-    }
-
-    public void RunPart1()
-    {
-        var input = ParseInput();
-        Result1 = GetResult1(input);
-    }
-
-    private long GetResult1((string Instructions, Dictionary<string, Node> Nodes) input)
+    protected override long GetResult1((string Instructions, Dictionary<string, Node> Nodes) input)
     {
         return RunInstructions(input, "AAA", node => node == "ZZZ");
     }
 
-    public void RunPart2()
-    {
-        var input = ParseInput();
-        Result2 = GetResult2(input);
-    }
-
-    private long GetResult2((string Instructions, Dictionary<string, Node> Nodes) input)
+    protected override long GetResult2((string Instructions, Dictionary<string, Node> Nodes) input)
     {
         return input.Nodes.Values
             .Where(node => node.Id[2] == 'A')
@@ -110,49 +78,7 @@
         return Gcd(b, a % b);
     }
 
-    public void RunBenchmark()
-    {
-        var timestamp = Stopwatch.GetTimestamp();
-        var input = ParseInput();
-        ParseFirst = Stopwatch.GetElapsedTime(timestamp);
-
-        var spans = new List<TimeSpan>();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            ParseInput();
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        ParseAverage = spans.AverageTime();
-
-        timestamp = Stopwatch.GetTimestamp();
-        GetResult1(input);
-        Part1First = Stopwatch.GetElapsedTime(timestamp);
-
-        spans.Clear();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            GetResult1(input);
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        Part1Average = spans.AverageTime();
-
-        timestamp = Stopwatch.GetTimestamp();
-        GetResult2(input);
-        Part2First = Stopwatch.GetElapsedTime(timestamp);
-
-        spans.Clear();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            GetResult2(input);
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        Part2Average = spans.AverageTime();
-    }
-
-    private (string Instructions, Dictionary<string, Node> Nodes) ParseInput()
+    protected override (string Instructions, Dictionary<string, Node> Nodes) ParseInput()
     {
         var lines = InputData.GetLines();
         var instructions = lines.First();
@@ -165,5 +91,5 @@
         return (instructions, nodes);
     }
 
-    record struct Node(string Id, string Left, string Right);
+    public record struct Node(string Id, string Left, string Right);
 }

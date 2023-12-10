@@ -1,12 +1,12 @@
 ﻿@page "/day03"
 @rendermode InteractiveServer
+@inherits DayBase<Day03, Day03.Schematic>
 
 <PageTitle>Day 03</PageTitle>
 
 <h1>Day 03</h1>
 <h3>Input</h3>
 <textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
-@* <textarea @oninput="HandleInputChange" rows="10">@DebugData</textarea> *@
 
 <h3>Part 1</h3>
 <button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
@@ -27,35 +27,7 @@
 
 
 @code {
-    public string InputData { get; set; } = string.Empty;
-    public string DebugData { get; set; } = string.Empty;
-    public long Result1 { get; set; } = 0;
-    public long Result2 { get; set; } = 0;
-
-    private TimeSpan ParseFirst { get; set; }
-    private TimeSpan ParseAverage { get; set; }
-    private TimeSpan Part1First { get; set; }
-    private TimeSpan Part1Average { get; set; }
-    private TimeSpan Part2First { get; set; }
-    private TimeSpan Part2Average { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        InputData = await File.ReadAllTextAsync($"{Directory.GetCurrentDirectory()}{@"\wwwroot\input\day03.txt"}");
-    }
-
-    public void HandleInputChange(ChangeEventArgs args)
-    {
-        InputData = args.Value?.ToString() ?? string.Empty;
-    }
-
-    public void RunPart1()
-    {
-        var schematic = ParseInput();
-        Result1 = GetResult1(schematic);
-    }
-
-    private long GetResult1(Schematic schematic)
+    protected override long GetResult1(Schematic schematic)
     {
         return schematic.Numbers
             .Select(num => (value: num.Value, minX: num.X - 1, maxX: num.X + num.Length, minY: num.Y - 1, maxY: num.Y + 1))
@@ -63,13 +35,7 @@
             .Sum(num => num.value);
     }
 
-    public void RunPart2()
-    {
-        var schematic = ParseInput();
-        Result2 = GetResult2(schematic);
-    }
-
-    private long GetResult2(Schematic schematic)
+    protected override long GetResult2(Schematic schematic)
     {
         return schematic.Symbols
             .Where(sym => sym.Value == '*')
@@ -78,49 +44,7 @@
             .Sum(numbers => numbers[0].Value * numbers[1].Value);
     }
 
-    public void RunBenchmark()
-    {
-        var timestamp = Stopwatch.GetTimestamp();
-        var schematic = ParseInput();
-        ParseFirst = Stopwatch.GetElapsedTime(timestamp);
-
-        var spans = new List<TimeSpan>();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            ParseInput();
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        ParseAverage = spans.AverageTime();
-
-        timestamp = Stopwatch.GetTimestamp();
-        GetResult1(schematic);
-        Part1First = Stopwatch.GetElapsedTime(timestamp);
-
-        spans.Clear();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            GetResult1(schematic);
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        Part1Average = spans.AverageTime();
-
-        timestamp = Stopwatch.GetTimestamp();
-        GetResult2(schematic);
-        Part2First = Stopwatch.GetElapsedTime(timestamp);
-
-        spans.Clear();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            GetResult2(schematic);
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        Part2Average = spans.AverageTime();
-    }
-
-    private Schematic ParseInput()
+    protected override Schematic ParseInput()
     {
         var board = InputData.GetLines().Select(line => line.ToArray()).ToArray();
         var numbers = new List<Number>();
@@ -172,7 +96,7 @@
         return new Schematic(board, numbers, symbols);
     }
 
-    record struct Schematic(char[][] Board, List<Number> Numbers, List<Symbol> Symbols);
-    record struct Number(int Value, int X, int Y, int Length);
-    record struct Symbol(char Value, int X, int Y);
+    public record struct Schematic(char[][] Board, List<Number> Numbers, List<Symbol> Symbols);
+    public record struct Number(int Value, int X, int Y, int Length);
+    public record struct Symbol(char Value, int X, int Y);
 }

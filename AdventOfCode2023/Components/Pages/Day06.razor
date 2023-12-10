@@ -1,5 +1,6 @@
 ﻿@page "/day06"
 @rendermode InteractiveServer
+@inherits DayBase<Day06, Day06.RaceSheet>
 
 <PageTitle>Day 06</PageTitle>
 
@@ -26,35 +27,7 @@
 
 
 @code {
-    public string InputData { get; set; } = string.Empty;
-    public string DebugData { get; set; } = string.Empty;
-    public long Result1 { get; set; } = 0;
-    public long Result2 { get; set; } = 0;
-
-    private TimeSpan ParseFirst { get; set; }
-    private TimeSpan ParseAverage { get; set; }
-    private TimeSpan Part1First { get; set; }
-    private TimeSpan Part1Average { get; set; }
-    private TimeSpan Part2First { get; set; }
-    private TimeSpan Part2Average { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        InputData = await File.ReadAllTextAsync($"{Directory.GetCurrentDirectory()}{@"\wwwroot\input\day06.txt"}");
-    }
-
-    public void HandleInputChange(ChangeEventArgs args)
-    {
-        InputData = args.Value?.ToString() ?? string.Empty;
-    }
-
-    public void RunPart1()
-    {
-        var input = ParseInput();
-        Result1 = GetResult1(input);
-    }
-
-    private long GetResult1(RaceSheet input)
+    protected override long GetResult1(RaceSheet input)
     {
         var total = 1;
         foreach (var pair in input.MultipleRaces)
@@ -82,13 +55,7 @@
 
     }
 
-    public void RunPart2()
-    {
-        var input = ParseInput();
-        Result2 = GetResult2(input);
-    }
-
-    private long GetResult2(RaceSheet input)
+    protected override long GetResult2(RaceSheet input)
     {
         var found = 0;
         var lastDistance = -1L;
@@ -109,49 +76,7 @@
         return found;
     }
 
-    public void RunBenchmark()
-    {
-        var timestamp = Stopwatch.GetTimestamp();
-        var input = ParseInput();
-        ParseFirst = Stopwatch.GetElapsedTime(timestamp);
-
-        var spans = new List<TimeSpan>();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            ParseInput();
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        ParseAverage = spans.AverageTime();
-
-        timestamp = Stopwatch.GetTimestamp();
-        GetResult1(input);
-        Part1First = Stopwatch.GetElapsedTime(timestamp);
-
-        spans.Clear();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            GetResult1(input);
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        Part1Average = spans.AverageTime();
-
-        timestamp = Stopwatch.GetTimestamp();
-        GetResult2(input);
-        Part2First = Stopwatch.GetElapsedTime(timestamp);
-
-        spans.Clear();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            GetResult2(input);
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        Part2Average = spans.AverageTime();
-    }
-
-    private RaceSheet ParseInput()
+    protected override RaceSheet ParseInput()
     {
         var lines = InputData.GetLines().Select(x => x.Substring(9)).ToArray();
         var times = lines[0].Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToArray();
@@ -165,5 +90,5 @@
         return new RaceSheet(multiple, (time, distance));
     }
 
-    record struct RaceSheet((int Time, int Distance)[] MultipleRaces, (long Time, long Distance) SingleRace);
+    public record struct RaceSheet((int Time, int Distance)[] MultipleRaces, (long Time, long Distance) SingleRace);
 }

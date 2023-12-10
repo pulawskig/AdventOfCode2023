@@ -1,5 +1,6 @@
 ﻿@page "/day05"
 @rendermode InteractiveServer
+@inherits DayBase<Day05, Day05.Almanac>
 
 <PageTitle>Day 05</PageTitle>
 
@@ -26,35 +27,7 @@
 
 
 @code {
-    public string InputData { get; set; } = string.Empty;
-    public string DebugData { get; set; } = string.Empty;
-    public long Result1 { get; set; } = 0;
-    public long Result2 { get; set; } = 0;
-
-    private TimeSpan ParseFirst { get; set; }
-    private TimeSpan ParseAverage { get; set; }
-    private TimeSpan Part1First { get; set; }
-    private TimeSpan Part1Average { get; set; }
-    private TimeSpan Part2First { get; set; }
-    private TimeSpan Part2Average { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        InputData = await File.ReadAllTextAsync($"{Directory.GetCurrentDirectory()}{@"\wwwroot\input\day05.txt"}");
-    }
-
-    public void HandleInputChange(ChangeEventArgs args)
-    {
-        InputData = args.Value?.ToString() ?? string.Empty;
-    }
-
-    public void RunPart1()
-    {
-        var input = ParseInput();
-        Result1 = GetResult1(input);
-    }
-
-    private long GetResult1(Almanac input)
+    protected override long GetResult1(Almanac input)
     {
         return input.Seeds
             .Select(input.MapSeedToSoil)
@@ -68,13 +41,7 @@
 
     }
 
-    public void RunPart2()
-    {
-        var input = ParseInput();
-        Result2 = GetResult2(input);
-    }
-
-    private long GetResult2(Almanac input)
+    protected override long GetResult2(Almanac input)
     {
         var soils = input.Map(input.SeedToSoil, input.SeedRanges);
         var fertilizers = input.Map(input.SoilToFertilizer, soils);
@@ -87,49 +54,7 @@
         return locations.Min(x => x.Start);
     }
 
-    public void RunBenchmark()
-    {
-        var timestamp = Stopwatch.GetTimestamp();
-        var input = ParseInput();
-        ParseFirst = Stopwatch.GetElapsedTime(timestamp);
-
-        var spans = new List<TimeSpan>();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            ParseInput();
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        ParseAverage = spans.AverageTime();
-
-        timestamp = Stopwatch.GetTimestamp();
-        GetResult1(input);
-        Part1First = Stopwatch.GetElapsedTime(timestamp);
-
-        spans.Clear();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            GetResult1(input);
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        Part1Average = spans.AverageTime();
-
-        timestamp = Stopwatch.GetTimestamp();
-        GetResult2(input);
-        Part2First = Stopwatch.GetElapsedTime(timestamp);
-
-        spans.Clear();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            GetResult2(input);
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        Part2Average = spans.AverageTime();
-    }
-
-    private Almanac ParseInput()
+    protected override Almanac ParseInput()
     {
         var lines = InputData.GetLines().ToArray();
         var seeds = lines[0].Substring(7).Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(long.Parse).ToArray();
@@ -183,7 +108,7 @@
         return almanac;
     }
 
-    class Almanac
+    public class Almanac
     {
         public long[] Seeds { get; init; }
         public List<SeedRange> SeedRanges { get; init; }
@@ -261,7 +186,7 @@
         }
     }
 
-    class Mapping
+    public class Mapping
     {
         public long SourceStart { get; init; }
         public long TargetStart { get; init; }
@@ -277,7 +202,7 @@
         }
     }
 
-    class SeedRange
+    public class SeedRange
     {
         public long Start { get; init; }
         public long Length { get; init; }

@@ -1,5 +1,6 @@
 ﻿@page "/day02"
 @rendermode InteractiveServer
+@inherits DayBase<Day02, Day02.Game[]>
 
 <PageTitle>Day 02</PageTitle>
 
@@ -26,17 +27,6 @@
 
 
 @code {
-    public string InputData { get; set; } = string.Empty;
-    public long Result1 { get; set; } = 0;
-    public long Result2 { get; set; } = 0;
-
-    private TimeSpan ParseFirst { get; set; }
-    private TimeSpan ParseAverage { get; set; }
-    private TimeSpan Part1First { get; set; }
-    private TimeSpan Part1Average { get; set; }
-    private TimeSpan Part2First { get; set; }
-    private TimeSpan Part2Average { get; set; }
-
     private readonly Regex gameRegex = new Regex(@"Game (\d+): (.*)");
     private readonly Regex groupRegex = new Regex(@"(\d+) (red|green|blue)");
     private readonly Dictionary<string, int> maxGroups = new Dictionary<string, int>
@@ -46,88 +36,24 @@
         { "blue", 14 },
     };
 
-    protected override async Task OnInitializedAsync()
-    {
-        InputData = await File.ReadAllTextAsync($"{Directory.GetCurrentDirectory()}{@"\wwwroot\input\day02.txt"}");
-    }
-
-    public void HandleInputChange(ChangeEventArgs args)
-    {
-        InputData = args.Value?.ToString() ?? string.Empty;
-    }
-
-    private Game[] ParseInput()
+    protected override Game[] ParseInput()
     {
         return InputData.ParseLines(this.ParseLine).ToArray();
     }
 
-    public void RunPart1()
-    {
-        var input = ParseInput();
-        Result1 = GetResult1(input);
-    }
-
-    private long GetResult1(Game[] input)
+    protected override long GetResult1(Game[] input)
     {
         return input
             .Where(game => game.Groups.All(group => group.Red <= 12 && group.Green <= 13 && group.Blue <= 14))
             .Sum(game => game.Id);
     }
 
-    public void RunPart2()
-    {
-        var input = ParseInput();
-        Result2 = GetResult2(input);
-    }
-
-    private long GetResult2(Game[] input)
+    protected override long GetResult2(Game[] input)
     {
         return input
             .Select(game => (red: game.Groups.Max(g => g.Red), green: game.Groups.Max(g => g.Green), blue: game.Groups.Max(g => g.Blue)))
             .Select(x => x.red * x.green * x.blue)
             .Sum();
-    }
-
-    public void RunBenchmark()
-    {
-        var timestamp = Stopwatch.GetTimestamp();
-        var schematic = ParseInput();
-        ParseFirst = Stopwatch.GetElapsedTime(timestamp);
-
-        var spans = new List<TimeSpan>();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            ParseInput();
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        ParseAverage = spans.AverageTime();
-
-        timestamp = Stopwatch.GetTimestamp();
-        GetResult1(schematic);
-        Part1First = Stopwatch.GetElapsedTime(timestamp);
-
-        spans.Clear();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            GetResult1(schematic);
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        Part1Average = spans.AverageTime();
-
-        timestamp = Stopwatch.GetTimestamp();
-        GetResult2(schematic);
-        Part2First = Stopwatch.GetElapsedTime(timestamp);
-
-        spans.Clear();
-        for (var i = 0; i < 10_000; i++)
-        {
-            timestamp = Stopwatch.GetTimestamp();
-            GetResult2(schematic);
-            spans.Add(Stopwatch.GetElapsedTime(timestamp));
-        }
-        Part2Average = spans.AverageTime();
     }
 
     private Game ParseLine(string line)
@@ -152,6 +78,6 @@
         return new Game(id, groups);
     }
 
-    record struct Game(int Id, List<Group> Groups);
-    record struct Group(int Red, int Green, int Blue);
+    public record struct Game(int Id, List<Group> Groups);
+    public record struct Group(int Red, int Green, int Blue);
 }
