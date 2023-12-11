@@ -1,0 +1,137 @@
+﻿@page "/day11"
+@using System.Diagnostics.CodeAnalysis
+@rendermode InteractiveServer
+@inherits DayBase<Day11, (List<List<Day11.Tile>> Map, List<Day11.Tile> Galaxies)>
+
+<PageTitle>Day 11</PageTitle>
+
+<h1>Day 11</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Parse (first): @ParseFirst.TotalMilliseconds ms</p>
+<p>Parse (average of 10 000): @ParseAverage.TotalMilliseconds ms</p>
+<p>Part 1 (first): @Part1First.TotalMilliseconds ms</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMilliseconds ms</p>
+<p>Part 2 (first): @Part2First.TotalMilliseconds ms</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMilliseconds ms</p>
+
+
+@code {
+    protected override long GetResult1((List<List<Tile>> Map, List<Tile> Galaxies) input)
+    {
+        return ExpandAndSum(input, 1L);
+    }
+
+    protected override long GetResult2((List<List<Tile>> Map, List<Tile> Galaxies) input)
+    {
+        return ExpandAndSum(input, 999_999L);
+    }
+
+    private long ExpandAndSum((List<List<Tile>> Map, List<Tile> Galaxies) input, long modifier)
+    {
+        var rows = new List<int>();
+        var columns = new List<int>();
+
+        for (var i = 0; i < input.Map.Count; i++)
+        {
+            if (input.Map[i].All(tile => tile.Type == TileType.Empty))
+            {
+                rows.Add(i);
+            }
+        }
+
+        for (var i = 0; i < input.Map[0].Count; i++)
+        {
+            if (input.Map.Select(row => row[i]).All(x => x.Type == TileType.Empty))
+            {
+                columns.Add(i);
+            }
+        }
+
+        foreach (var galaxy in input.Galaxies)
+        {
+            galaxy.ExpandedX = galaxy.OriginalX + (columns.Where(i => i < galaxy.OriginalX).Count() * modifier);
+            galaxy.ExpandedY = galaxy.OriginalY + (rows.Where(i => i < galaxy.OriginalY).Count() * modifier);
+        }
+
+        return input.Galaxies
+            .SelectMany(_ => input.Galaxies, (a, b) => (A: a, B: b))
+            .Distinct(new Tile())
+            .Select(x => Math.Abs(x.A.ExpandedX - x.B.ExpandedX) + Math.Abs(x.A.ExpandedY - x.B.ExpandedY))
+            .Sum();
+    }
+
+    protected override (List<List<Tile>> Map, List<Tile> Galaxies) ParseInput()
+    {
+        var galaxies = new List<Tile>();
+        var map = InputData
+            .GetLines()
+            .Select((line, y) => line
+                .Select((c, x) => new Tile
+                {
+                    Type = c == '.' ? TileType.Empty : TileType.Galaxy,
+                    OriginalX = x,
+                    OriginalY = y,
+                })
+                .Peek(tile =>
+                {
+                    if (tile.Type == TileType.Galaxy)
+                    {
+                        galaxies.Add(tile);
+                    }
+                })
+                .ToList())
+            .ToList();
+
+        return (map, galaxies);
+    }
+
+    public enum TileType
+    {
+        Empty, Galaxy
+    }
+
+    public class Tile : IEqualityComparer<(Tile A, Tile B)>
+    {
+        public TileType Type { get; set; }
+
+        public int OriginalX { get; set; }
+
+        public int OriginalY { get; set; }
+
+        public long ExpandedX { get; set; }
+
+        public long ExpandedY { get; set; }
+
+        public override int GetHashCode()
+        {
+            return (OriginalX, OriginalY).GetHashCode();
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is Tile tile && OriginalX == tile.OriginalX && OriginalY == tile.OriginalY;
+        }
+
+        public bool Equals((Tile A, Tile B) x, (Tile A, Tile B) y)
+        {
+            return (x.A.Equals(y.A) && x.B.Equals(y.B)) || (x.A.Equals(y.B) && x.B.Equals(y.A));
+        }
+
+        public int GetHashCode([DisallowNull] (Tile A, Tile B) obj)
+        {
+            return obj.A.GetHashCode() ^ obj.B.GetHashCode();
+        }
+    }
+}

@@ -72,6 +72,7 @@ public abstract class DayBase<TDay, TParse> : ComponentBase
         }
         Part1Average = spans.AverageTime();
 
+        input = ParseInput();
         timestamp = Stopwatch.GetTimestamp();
         GetResult2(input);
         Part2First = Stopwatch.GetElapsedTime(timestamp);
