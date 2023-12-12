@@ -1,0 +1,96 @@
+﻿@page "/day12"
+@rendermode InteractiveServer
+@inherits DayBase<Day12, Day12.PipeInfo[]>
+
+<PageTitle>Day 12</PageTitle>
+
+<h1>Day 12</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Parse (first): @ParseFirst.TotalMilliseconds ms</p>
+<p>Parse (average of 10 000): @ParseAverage.TotalMilliseconds ms</p>
+<p>Part 1 (first): @Part1First.TotalMilliseconds ms</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMilliseconds ms</p>
+<p>Part 2 (first): @Part2First.TotalMilliseconds ms</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMilliseconds ms</p>
+
+
+@code {
+    private Dictionary<string, long> cache = new Dictionary<string, long>();
+    private Regex startRegex = new Regex(@"^#+(?=\.|$)");
+
+    protected override long GetResult1(PipeInfo[] input)
+    {
+        return input
+            .Select(x => CalculateVariants(x.Line, x.Groups))
+            .Sum();
+    }
+
+    private long CalculateVariants(string line, int[] groups)
+    {
+        line = line.TrimStart('.');
+
+        if (line.Length == 0) return groups.Length == 0 ? 1 : 0;
+        if (groups.Length == 0) return line.Contains('#') ? 0 : 1;
+        if (line.Count(c => c == '#' || c == '?') < groups.Sum()) return 0;
+
+        var key = line + " " + string.Join(',', groups.Select(x => x.ToString()));
+        if (cache.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
+        var result = 0L;
+        var match = startRegex.Match(line);
+        if (match.Success)
+        {
+            if (match.Length == groups[0])
+            {
+                result += CalculateVariants(line[groups[0]..], groups[1..]);
+            }
+        }
+        else if(line.Contains('?'))
+        {
+            result += CalculateVariants(line.ReplaceFirstOccurance('?', '.'), groups);
+            result += CalculateVariants(line.ReplaceFirstOccurance('?', '#'), groups);
+        }
+
+        cache.Add(key, result);
+        return result;
+    }
+
+    protected override long GetResult2(PipeInfo[] input)
+    {
+        return input
+            .Select(Expand)
+            .Select(x => CalculateVariants(x.Line, x.Groups))
+            .Sum();
+    }
+
+    private PipeInfo Expand(PipeInfo original)
+    {
+        return new PipeInfo(Enumerable.Repeat(original.Line, 5).JoinString('?'), Enumerable.Repeat(original.Groups, 5).SelectMany(x => x).ToArray());
+    }
+
+    protected override PipeInfo[] ParseInput()
+    {
+        return InputData
+            .GetLines()
+            .Select(line => line.Split(' '))
+            .Select(split => new PipeInfo(split[0], split[1].Split(',').Select(int.Parse).ToArray()))
+            .ToArray();
+    }
+
+    public record struct PipeInfo(string Line, int[] Groups);
+}

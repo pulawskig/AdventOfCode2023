@@ -24,4 +24,9 @@ public static class EnumerableExtensions
             yield return iterator.Current;
         }
     }
+
+    public static string JoinString<T>(this IEnumerable<T> source, char separator)
+    {
+        return string.Join(separator, source);
+    }
 }
