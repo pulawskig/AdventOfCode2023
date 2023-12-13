@@ -29,4 +29,28 @@ public static class EnumerableExtensions
     {
         return string.Join(separator, source);
     }
+
+    public static string JoinString<T>(this IEnumerable<T> source, string separator)
+    {
+        return string.Join(separator, source);
+    }
+
+    public static IEnumerable<IEnumerable<T>> DivideIntoGroups<T>(this IEnumerable<T> source, Func<T, bool> dividerPredicate)
+    {
+        var list = new List<T>();
+        using var iterator = source.GetEnumerator();
+        while (iterator.MoveNext())
+        {
+            if (dividerPredicate(iterator.Current))
+            {
+                yield return list;
+                list = new List<T>();
+                continue;
+            }
+
+            list.Add(iterator.Current);
+        }
+
+        yield return list;
+    }
 }

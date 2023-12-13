@@ -1,0 +1,127 @@
+﻿@page "/day13"
+@rendermode InteractiveServer
+@inherits DayBase<Day13, List<List<string>>>
+
+<PageTitle>Day 13</PageTitle>
+
+<h1>Day 13</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Parse (first): @ParseFirst.TotalMilliseconds ms</p>
+<p>Parse (average of 10 000): @ParseAverage.TotalMilliseconds ms</p>
+<p>Part 1 (first): @Part1First.TotalMilliseconds ms</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMilliseconds ms</p>
+<p>Part 2 (first): @Part2First.TotalMilliseconds ms</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMilliseconds ms</p>
+
+
+@code {
+    protected override long GetResult1(List<List<string>> input)
+    {
+        return GetResult(input, CalculatePart1);
+    }
+
+    private long GetResult(List<List<string>> input, Func<List<string>, long> calculate)
+    {
+        var sum = 0L;
+        foreach (var group in input)
+        {
+            var result = calculate(group);
+            sum += result * 100;
+
+            if (result > 0)
+            {
+                continue;
+            }
+
+            sum += calculate(Transpose(group));
+        }
+        return sum;
+    }
+
+    private long CalculatePart1(List<string> group)
+    {
+        for (var i = 1; i < group.Count; i++)
+        {
+            var length = Math.Min(i, group.Count - i);
+            var success = group
+                .Take(i)
+                .Skip(i - length)
+                .Reverse()
+                .Zip(group
+                    .Skip(i)
+                    .Take(length))
+                .All(x => x.First == x.Second);
+
+            if (success)
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private List<string> Transpose(List<string> source)
+    {
+        var transpose = new List<string>();
+        for (var i = 0; i < source[0].Length; i++)
+        {
+            transpose.Add(source
+                .Select(line => line[i])
+                .JoinString(string.Empty));
+        }
+        return transpose;
+    }
+
+    protected override long GetResult2(List<List<string>> input)
+    {
+        return GetResult(input, CalculatePart2);
+    }
+
+    private long CalculatePart2(List<string> group)
+    {
+        for (var i = 1; i < group.Count; i++)
+        {
+            var length = Math.Min(i, group.Count - i);
+            var success = group
+                .Take(i)
+                .Skip(i - length)
+                .Reverse()
+                .Zip(group
+                    .Skip(i)
+                    .Take(length))
+                .Select(comp => comp.First
+                    .Zip(comp.Second)
+                    .Count(x => x.First != x.Second))
+                .Sum() == 1;
+
+            if (success)
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    protected override List<List<string>> ParseInput()
+    {
+        return InputData
+            .GetLines(false)
+            .DivideIntoGroups(string.IsNullOrWhiteSpace)
+            .Select(group => group.ToList())
+            .ToList();
+    }
+}
