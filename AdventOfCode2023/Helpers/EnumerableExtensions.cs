@@ -53,4 +53,18 @@ public static class EnumerableExtensions
 
         yield return list;
     }
+
+    public static List<T> Apply<T>(this List<T> source, Func<List<T>, List<T>> func)
+    {
+        return func(source);
+    }
+
+    public static List<T> Apply<T>(this List<T> source, Func<T, T> func)
+    {
+        for (var i = 0; i < source.Count; i++)
+        {
+            source[i] = func(source[i]);
+        }
+        return source;
+    }
 }

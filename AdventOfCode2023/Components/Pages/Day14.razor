@@ -1,0 +1,123 @@
+﻿@page "/day14"
+@rendermode InteractiveServer
+@inherits DayBase<Day14, List<string>>
+
+<PageTitle>Day 14</PageTitle>
+
+<h1>Day 14</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Parse (first): @ParseFirst.TotalMilliseconds ms</p>
+<p>Parse (average of 10 000): @ParseAverage.TotalMilliseconds ms</p>
+<p>Part 1 (first): @Part1First.TotalMilliseconds ms</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMilliseconds ms</p>
+<p>Part 2 (first): @Part2First.TotalMilliseconds ms</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMilliseconds ms</p>
+
+
+@code {
+    protected override List<string> ParseInput()
+    {
+        return InputData
+            .GetLines()
+            .ToList();
+    }
+
+    protected override long GetResult1(List<string> input)
+    {
+        return input
+            .Transpose()
+            .Select(line => line
+                .DivideIntoGroups(c => c == '#')
+                .Select(group => group
+                    .OrderByDescending(c => (int)c)
+                    .JoinString(string.Empty))
+                .JoinString('#')
+                .Reverse()
+                .Select((c, i) => (c == 'O' ? 1 : 0) * (i + 1))
+                .Sum())
+            .Sum();
+    }
+
+    protected override long GetResult2(List<string> input)
+    {
+        var currentState = input.ToList();
+        var seen = new Dictionary<string, int>();
+        var i = 0;
+
+        for (; i < 1_000_000_000; i++)
+        {
+            if (!seen.TryAdd(currentState.JoinString(string.Empty), i))
+            {
+                break;
+            }
+
+            currentState = Cycle(currentState);
+        }
+
+        var cycle = i - seen[currentState.JoinString(string.Empty)];
+        var delta = (1_000_000_000 - i) % cycle;
+
+        for (var j = 0; j < delta; j++)
+        {
+            currentState = Cycle(currentState);
+        }
+
+        return currentState
+            .Transpose()
+            .Select(line => line
+                .Reverse()
+                .Select((c, i) => (c == 'O' ? 1 : 0) * (i + 1))
+                .Sum())
+            .Sum();
+    }
+
+    private List<string> Cycle(List<string> input)
+    {
+        return input
+            .Transpose()
+            .Apply(Roll)
+            .Transpose()
+            .Apply(Roll)
+            .Transpose()
+            .Apply(Reverse)
+            .Apply(Roll)
+            .Transpose()
+            .Apply(Reverse)
+            .Apply(Roll)
+            .Apply(Reverse)
+            .AsEnumerable()
+            .Reverse()
+            .ToList();
+    }
+
+    private List<string> Roll(List<string> input)
+    {
+        return input
+            .Select(line => line
+                .DivideIntoGroups(c => c == '#')
+                .Select(group => group
+                    .OrderByDescending(c => (int)c)
+                    .JoinString(string.Empty))
+                .JoinString('#'))
+            .ToList();
+    }
+
+    private string Reverse(string input)
+    {
+        var arr = input.ToCharArray();
+        Array.Reverse(arr);
+        return new string(arr);
+    }
+}

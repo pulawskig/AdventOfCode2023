@@ -45,7 +45,7 @@
                 continue;
             }
 
-            sum += calculate(Transpose(group));
+            sum += calculate(Common.Transpose(group));
         }
         return sum;
     }
@@ -71,18 +71,6 @@
         }
 
         return 0;
-    }
-
-    private List<string> Transpose(List<string> source)
-    {
-        var transpose = new List<string>();
-        for (var i = 0; i < source[0].Length; i++)
-        {
-            transpose.Add(source
-                .Select(line => line[i])
-                .JoinString(string.Empty));
-        }
-        return transpose;
     }
 
     protected override long GetResult2(List<List<string>> input)
