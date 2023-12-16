@@ -1,0 +1,126 @@
+﻿@page "/day16"
+@rendermode InteractiveServer
+@inherits DayBase<Day16, Day16.Tile[][]>
+
+<PageTitle>Day 16</PageTitle>
+
+<h1>Day 16</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Parse (first): @ParseFirst.TotalMilliseconds ms</p>
+<p>Parse (average of 10 000): @ParseAverage.TotalMilliseconds ms</p>
+<p>Part 1 (first): @Part1First.TotalMilliseconds ms</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMilliseconds ms</p>
+<p>Part 2 (first): @Part2First.TotalMilliseconds ms</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMilliseconds ms</p>
+
+
+@code {
+    protected override Tile[][] ParseInput()
+    {
+        return InputData
+            .GetLines()
+            .Select((line, y) => line
+                .Select((c, x) => new Tile(c, x, y))
+                .ToArray())
+            .ToArray();
+    }
+
+    protected override long GetResult1(Tile[][] input)
+    {
+
+        return GetResult(input, input[0][0], 1, 0);
+    }
+
+    protected override long GetResult2(Tile[][] input)
+    {
+        var max = 0L;
+
+        var maxY = input.Length - 1;
+        var maxX = input[0].Length - 1;
+
+        for (var i = 0; i <= maxY; i++)
+        {
+            max = Math.Max(max, GetResult(input, input[i][0], 1, 0));
+            max = Math.Max(max, GetResult(input, input[i][maxX], -1, 0));
+        }
+
+        for (var i = 0; i <= maxX; i++)
+        {
+            max = Math.Max(max, GetResult(input, input[0][i], 0, 1));
+            max = Math.Max(max, GetResult(input, input[maxY][i], 0, -1));
+        }
+
+        return max;
+    }
+
+    private long GetResult(Tile[][] input, Tile startTile, int startDiffX, int startDiffY)
+    {
+        var queue = new Queue<(int x, int y, int nextX, int nextY)>();
+        var known = new Dictionary<(int x, int y, int nextX, int nextY), bool>();
+
+        var start = GetNext(startTile, startDiffX, startDiffY);
+        foreach (var point in start)
+        {
+            queue.Enqueue((startTile.X, startTile.Y, point.x, point.y));
+        }
+
+        var maxY = input.Length - 1;
+        var maxX = input[0].Length - 1;
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+
+            if (!known.TryAdd(current, true) || current.nextX < 0 || current.nextX > maxX || current.nextY < 0 || current.nextY > maxY)
+            {
+                continue;
+            }
+
+            var next = input[current.nextY][current.nextX];
+            var diffX = next.X - current.x;
+            var diffY = next.Y - current.y;
+
+            var further = GetNext(next, diffX, diffY);
+
+            foreach (var point in further)
+            {
+                queue.Enqueue((next.X, next.Y, point.x, point.y));
+            }
+        }
+
+        return known.Keys.DistinctBy(x => (x.x, x.y)).Count();
+    }
+
+    private (int x, int y)[] GetNext(Tile tile, int diffX, int diffY)
+    {
+        return (tile.Type, diffX, diffY) switch
+        {
+            ('.', _, _) or ('-', _, 0) or ('|', 0, _) => new[] { (tile.X + diffX, tile.Y + diffY) },
+            ('\\', < 0, _) => new[] { (tile.X, tile.Y - 1) },
+            ('\\', > 0, _) => new[] { (tile.X, tile.Y + 1) },
+            ('\\', _, < 0) => new[] { (tile.X - 1, tile.Y) },
+            ('\\', _, > 0) => new[] { (tile.X + 1, tile.Y) },
+            ('/', < 0, _) => new[] { (tile.X, tile.Y + 1) },
+            ('/', > 0, _) => new[] { (tile.X, tile.Y - 1) },
+            ('/', _, < 0) => new[] { (tile.X + 1, tile.Y) },
+            ('/', _, > 0) => new[] { (tile.X - 1, tile.Y) },
+            ('-', 0, _) => new[] { (tile.X - 1, tile.Y), (tile.X + 1, tile.Y) },
+            ('|', _, 0) => new[] { (tile.X, tile.Y - 1), (tile.X, tile.Y + 1) },
+            _ => throw new NotImplementedException(),
+        };
+    }
+
+    public record struct Tile(char Type, int X, int Y);
+}
