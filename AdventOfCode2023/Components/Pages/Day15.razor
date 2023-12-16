@@ -1,0 +1,97 @@
+﻿@page "/day15"
+@rendermode InteractiveServer
+@inherits DayBase<Day15, Day15.Operation[]>
+
+<PageTitle>Day 15</PageTitle>
+
+<h1>Day 15</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Parse (first): @ParseFirst.TotalMilliseconds ms</p>
+<p>Parse (average of 10 000): @ParseAverage.TotalMilliseconds ms</p>
+<p>Part 1 (first): @Part1First.TotalMilliseconds ms</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMilliseconds ms</p>
+<p>Part 2 (first): @Part2First.TotalMilliseconds ms</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMilliseconds ms</p>
+
+
+@code {
+    private Regex operationRegex = new Regex(@"(\w+)(-|=)(\d*)");
+
+    protected override Operation[] ParseInput()
+    {
+        return operationRegex
+            .Matches(InputData)
+            .Select(match => match.Groups)
+            .Select(groups => new Operation(groups[0].Value, groups[1].Value, Convert.ToChar(groups[2].Value), string.IsNullOrEmpty(groups[3].Value) ? null : int.Parse(groups[3].Value)))
+            .ToArray();
+    }
+
+    protected override long GetResult1(Operation[] input)
+    {
+        return input.Select(x => Hash(x.Full)).Sum();
+    }
+
+    protected override long GetResult2(Operation[] input)
+    {
+        var map = Enumerable
+            .Range(0, 256)
+            .ToDictionary(i => i, _ => new List<Operation>());
+
+        foreach (var operation in input)
+        {
+            var hash = Hash(operation.Label);
+            var list = map[hash];
+
+            var item = list.Cast<Operation?>().FirstOrDefault(op => op?.Label == operation.Label);
+            if (operation.Type == '-')
+            {
+                if (item.HasValue)
+                {
+                    list.Remove(item.Value);
+                }
+            }
+            else
+            {
+                if (item.HasValue)
+                {
+                    var index = list.IndexOf(item.Value);
+                    list[index] = operation;
+                }
+                else
+                {
+                    list.Add(operation);
+                }
+            }
+        }
+
+        return map
+            .SelectMany(pair => pair.Value.Select((op, i) => (pair.Key + 1) * (i + 1) * (op.Value ?? 0)))
+            .Sum();
+    }
+
+    private int Hash(string str)
+    {
+        int hash = 0;
+        foreach (var c in str)
+        {
+            hash += c;
+            hash *= 17;
+            hash %= 256;
+        }
+        return hash;
+    }
+
+    public record struct Operation(string Full, string Label, char Type, int? Value);
+}
