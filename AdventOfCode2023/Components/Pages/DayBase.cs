@@ -4,11 +4,12 @@ using System.Diagnostics;
 
 namespace AdventOfCode2023.Components.Pages;
 
-public abstract class DayBase<TDay, TParse> : ComponentBase
+public abstract class DayBase<TDay, TParse> : DayBase<TDay, TParse, long, long>;
+public abstract class DayBase<TDay, TParse, TPart1, TPart2> : ComponentBase
 {
     public string InputData { get; set; } = string.Empty;
-    public long Result1 { get; protected set; } = 0;
-    public long Result2 { get; protected set; } = 0;
+    public TPart1 Result1 { get; protected set; } = default;
+    public TPart2 Result2 { get; protected set; } = default;
 
     protected TimeSpan ParseFirst { get; set; }
     protected TimeSpan ParseAverage { get; set; }
@@ -35,14 +36,14 @@ public abstract class DayBase<TDay, TParse> : ComponentBase
         Result1 = GetResult1(input);
     }
 
-    protected abstract long GetResult1(TParse input);
+    protected abstract TPart1 GetResult1(TParse input);
 
     public void RunPart2()
     {
         var input = ParseInput();
         Result2 = GetResult2(input);
     }
-    protected abstract long GetResult2(TParse input);
+    protected abstract TPart2 GetResult2(TParse input);
 
     public void RunBenchmark()
     {
