@@ -1,0 +1,314 @@
+﻿@page "/day19"
+@rendermode InteractiveServer
+@using InputType = (Dictionary<string, Day19.Workflow> Workflows, Day19.Part[] Parts)
+@using System.Numerics
+@inherits DayBase<Day19, InputType, long, BigInteger>
+
+<PageTitle>Day 19</PageTitle>
+
+<h1>Day 19</h1>
+<h3>Input</h3>
+<textarea @oninput="HandleInputChange" rows="10">@InputData</textarea>
+
+<h3>Part 1</h3>
+<button class="btn btn-primary" @onclick="RunPart1">Calculate</button>
+<p>Result: @Result1</p>
+
+<h3>Part 2</h3>
+<button class="btn btn-primary" @onclick="RunPart2">Calculate</button>
+<p>Result: @Result2</p>
+
+<h3>Banchmark</h3>
+<button class="btn btn-primary" @onclick="RunBenchmark">Calculate</button>
+<p>Parse (first): @ParseFirst.TotalMilliseconds ms</p>
+<p>Parse (average of 10 000): @ParseAverage.TotalMilliseconds ms</p>
+<p>Part 1 (first): @Part1First.TotalMilliseconds ms</p>
+<p>Part 1 (average of 10 000): @Part1Average.TotalMilliseconds ms</p>
+<p>Part 2 (first): @Part2First.TotalMilliseconds ms</p>
+<p>Part 2 (average of 10 000): @Part2Average.TotalMilliseconds ms</p>
+
+
+@code {
+    private Regex workflowRegex = new(@"(\w+){(.+)}");
+    private Regex operationRegex = new(@"([xmas])(<|>)(\d+):(\w+)");
+    private Regex partRegex = new(@"{x=(\d+),m=(\d+),a=(\d+),s=(\d+)}");
+
+    protected override InputType ParseInput()
+    {
+        var groups = InputData
+            .GetLines(false)
+            .DivideIntoGroups(string.IsNullOrEmpty);
+
+        var workflows = groups
+            .First()
+            .Select(line => workflowRegex.Match(line).Groups)
+            .Select(groups => (key: groups[1].Value, values: groups[2].Value))
+            .ToDictionary(pair => pair.key, pair => new Workflow(pair.key, pair.values.Split(',').Select(GetOperation).ToArray()));
+
+        var parts = groups
+            .Last()
+            .Select(line => partRegex.Match(line).Groups)
+            .Select(groups => new Part { X = long.Parse(groups[1].Value), M = long.Parse(groups[2].Value), A = long.Parse(groups[3].Value), S = long.Parse(groups[4].Value) })
+            .ToArray();
+
+        return (workflows, parts);
+    }
+
+    protected override long GetResult1(InputType input)
+    {
+        var accepted = new List<Part>();
+        foreach (var part in input.Parts)
+        {
+            Workflow? workflow = input.Workflows["in"];
+            while (workflow.HasValue)
+            {
+                foreach (var op in workflow.Value.Operations)
+                {
+                    if (part.Check(op))
+                    {
+                        workflow = NextWorkflow(part, op, input.Workflows, accepted);
+                        break;
+                    }
+                }
+            }
+        }
+
+        return accepted.Sum(x => x.Rating);
+    }
+
+    protected override BigInteger GetResult2(InputType input)
+    {
+        var full = new PartRange
+        {
+            WorkflowName = "in",
+            Result = OperationResult.Move,
+            X = new RatingRange{ Start = 1, End = 4000 },
+            M = new RatingRange{ Start = 1, End = 4000 },
+            A = new RatingRange{ Start = 1, End = 4000 },
+            S = new RatingRange{ Start = 1, End = 4000 },
+        };
+        var accepted = new List<PartRange>();
+        var queue = new Queue<PartRange>();
+
+        queue.Enqueue(full);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            var workflow = input.Workflows[current.WorkflowName];
+
+            foreach (var operation in workflow.Operations)
+            {
+                var splits = current.Split(operation);
+
+                accepted.AddRange(splits.Where(x => x.Result == OperationResult.Accept));
+
+                var moves = splits.Where(x => x.Result == OperationResult.Move);
+                foreach (var move in moves.Where(x => x.WorkflowName != current.WorkflowName))
+                {
+                    queue.Enqueue(move);
+                }
+
+                if (moves.Any(x => x.WorkflowName == current.WorkflowName))
+                {
+                    current = moves.First(x => x.WorkflowName == current.WorkflowName);
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        return accepted.Aggregate(BigInteger.Zero, (a, b) => a + b.Size);
+    }
+
+    private Workflow? NextWorkflow(Part part, Operation op, Dictionary<string, Workflow> workflows, List<Part> accepted)
+    {
+        switch (op.Result)
+        {
+            case OperationResult.Accept:
+                accepted.Add(part);
+                return null;
+            case OperationResult.Reject:
+                return null;
+            default:
+                return workflows[op.MoveTarget];
+        }
+    }
+
+    private Operation GetOperation(string str)
+    {
+        if (!operationRegex.IsMatch(str))
+        {
+            var result = GetOperationResult(str);
+            return new('*', '*', 0, result, str);
+        }
+
+        var groups = operationRegex.Match(str).Groups;
+        var resultType = GetOperationResult(groups[4].Value);
+        return new(char.Parse(groups[1].Value), char.Parse(groups[2].Value), long.Parse(groups[3].Value), resultType, groups[4].Value);
+    }
+
+    private OperationResult GetOperationResult(string str)
+    {
+        return str switch
+        {
+            "A" => OperationResult.Accept,
+            "R" => OperationResult.Reject,
+            _ => OperationResult.Move,
+        };
+    }
+
+    public enum PartStatus
+    {
+        New, Accepted, Rejected
+    }
+
+    public enum OperationResult
+    {
+        Accept, Reject, Move
+    }
+
+    public struct Part
+    {
+        public long X { get; init; }
+        public long M { get; init; }
+        public long A { get; init; }
+        public long S { get; init; }
+
+        public long Rating => X + M + A + S;
+
+        public Part() {}
+
+        public bool Check(Operation op)
+        {
+            var check = op.Rating switch
+            {
+                'x' => X,
+                'm' => M,
+                'a' => A,
+                's' => S,
+                _ => 0,
+            };
+
+            return op.OpType switch
+            {
+                '>' => check > op.Condition,
+                '<' => check < op.Condition,
+                _ => true,
+            };
+        }
+    }
+
+    public struct PartRange
+    {
+        public string WorkflowName { get; init; }
+        public OperationResult Result { get; init; }
+        public RatingRange X { get; init; }
+        public RatingRange M { get; init; }
+        public RatingRange A { get; init; }
+        public RatingRange S { get; init; }
+
+        public BigInteger Size => BigInteger.One * X * M * A * S;
+
+        public PartRange[] Split(Operation op)
+        {
+            if (op.Rating == '*')
+            {
+                return new[]
+                {
+                    this with
+                    {
+                        Result = op.Result,
+                        WorkflowName = op.MoveTarget,
+                    }
+                };
+            }
+
+            var check = op.Rating switch
+            {
+                'x' => X,
+                'm' => M,
+                'a' => A,
+                's' => S,
+                _ => throw new NotImplementedException(),
+            };
+
+            if ((op.OpType == '>' && check.Start > op.Condition) || (op.OpType == '<' && check.End < op.Condition))
+            {
+                return new[]
+                {
+                    this with
+                    {
+                        Result = op.Result,
+                        WorkflowName = op.MoveTarget,
+                    }
+                };
+            }
+            else if (op.Condition >= check.Start && op.Condition <= check.End)
+            {
+                if (op.OpType == '<')
+                {
+                    return new[]
+                    {
+                        this with
+                        {
+                            Result = op.Result,
+                            WorkflowName = op.MoveTarget,
+                            X = op.Rating == 'x' ? X with { End = op.Condition - 1 } : X,
+                            M = op.Rating == 'm' ? M with { End = op.Condition - 1 } : M,
+                            A = op.Rating == 'a' ? A with { End = op.Condition - 1 } : A,
+                            S = op.Rating == 's' ? S with { End = op.Condition - 1 } : S,
+                        },
+                        this with
+                        {
+                            X = op.Rating == 'x' ? X with { Start = op.Condition } : X,
+                            M = op.Rating == 'm' ? M with { Start = op.Condition } : M,
+                            A = op.Rating == 'a' ? A with { Start = op.Condition } : A,
+                            S = op.Rating == 's' ? S with { Start = op.Condition } : S,
+                        }
+                    };
+                }
+                else
+                {
+                    return new[]
+                    {
+                        this with
+                        {
+                            Result = op.Result,
+                            WorkflowName = op.MoveTarget,
+                            X = op.Rating == 'x' ? X with { Start = op.Condition + 1 } : X,
+                            M = op.Rating == 'm' ? M with { Start = op.Condition + 1 } : M,
+                            A = op.Rating == 'a' ? A with { Start = op.Condition + 1 } : A,
+                            S = op.Rating == 's' ? S with { Start = op.Condition + 1 } : S,
+                        },
+                        this with
+                        {
+                            X = op.Rating == 'x' ? X with { End = op.Condition } : X,
+                            M = op.Rating == 'm' ? M with { End = op.Condition } : M,
+                            A = op.Rating == 'a' ? A with { End = op.Condition } : A,
+                            S = op.Rating == 's' ? S with { End = op.Condition } : S,
+                        }
+                    };
+                }
+            }
+            else
+            {
+                return new[] { this };
+            }
+        }
+    }
+
+    public record struct Operation(char Rating, char OpType, long Condition, OperationResult Result, string MoveTarget);
+    public record struct Workflow(string Name, Operation[] Operations);
+
+    public struct RatingRange
+    {
+        public long Start { get; set; }
+        public long End { get; set; }
+        public long Length => End - Start + 1;
+
+        public static implicit operator BigInteger(RatingRange range) => new BigInteger(range.Length);
+    }
+}
